@@ -6,6 +6,7 @@ import dto.DTO;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ForkJoinTask;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.concurrent.ForkJoinPool;
@@ -107,7 +108,6 @@ public class Main {
 
         allResidents.stream()
                 .forEach(System.out::println);
-        //allResidents.forEach(System.out::println); ???
 
         //task 4
         System.out.println("\nTask 4:");
@@ -150,13 +150,43 @@ public class Main {
         //task 7
         System.out.println("\nTask 7:");
 
-        int[] customPoolSizes = {1, 5, 10};
+        List<ApartmentBlock> blocks = new ArrayList<>(deserializedBlocks);
+        ForkJoinPool threadCustom = new ForkJoinPool(2);
 
-        for (int poolSize : customPoolSizes) {
-            System.out.println("Executing with custom pool size: " + poolSize);
-            executeTasksInParallel(apartmentBlocks, poolSize);
-            System.out.println();
+        try {
+            List<ForkJoinTask<Void>> tasks = new ArrayList<>();
+
+            for (ApartmentBlock block : blocks) {
+                ForkJoinTask<Void> task = threadCustom.submit(() -> {
+                    try {
+                        System.out.println("Residents are starting to enter and leave " + block.getBlockName() + " block.");
+                        for (Resident resident : block.getResidents()) {
+                            System.out.println("Resident just entered the block: " + resident);
+                            Thread.sleep(500);
+                            System.out.println("Resident just left the block: " + resident);
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return null;
+                });
+
+                tasks.add(task);
+            }
+
+            for (ForkJoinTask<Void> task : tasks) {
+                task.join();
+            }
+        } catch (Exception err) {
+            err.printStackTrace();
+        } finally {
+            threadCustom.shutdown();
         }
+
+
+        //task7(deserializedBlocks);
+
+
 
     }
 
@@ -177,28 +207,56 @@ public class Main {
         }
     }
 
-    private static void executeTasksInParallel(Set<ApartmentBlock> apartmentBlocks, int poolSize) {
-        ForkJoinPool customThreadPool = new ForkJoinPool(poolSize);
+    private static void task7(Set<ApartmentBlock> blocks) {
+        ForkJoinPool t = new ForkJoinPool(2);
+        try {
+            blocks.parallelStream()
+                    .forEach(block -> {
+                        t.execute(() -> {
+                            System.out.println("Residents are starting to enter and leave " + block.getBlockName() + " block.");
+                            List<Resident> residents = block.getResidents();
+                                try {
+                                    for (Resident resident : residents) {
+                                        System.out.println("Resident just entered the block: " + resident);
+                                        Thread.sleep(500);
+                                        System.out.println("Resident just left the block: " + resident);
 
-        apartmentBlocks.parallelStream()
-                .forEach(apartmentBlock -> customThreadPool.submit(() -> {
-                    System.out.println("Executing task for block: " + apartmentBlock.getBlockName());
+                                    }
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                }
+                        });
+                    });
+        } catch (Exception err) {
+            err.printStackTrace();
+        } finally {
+            t.shutdown();
+        }
+        /*
+        List<ApartmentBlock> blocks = new ArrayList<>(deserializedBlocks);
 
-                    List<Resident> residents = apartmentBlock.getResidents();
-                    for (Resident resident : residents) {
-                        System.out.println("Resident: " + resident);
-                        try {
-                            Thread.sleep(100); // Simulate workload with a sleep
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
-                    }
+        ForkJoinPool threadCustom = new ForkJoinPool(2);
+        try {
+            blocks.parallelStream()
+                    .forEach(block -> {
+                        threadCustom.execute(() -> {
+                            try {
+                                System.out.println("Residents are starting to enter and leave " + block.getBlockName() + " block.");
+                                for (Resident resident : block.getResidents()) {
+                                    System.out.println("Resident just entered the block: " + resident);
+                                    Thread.sleep(500);
+                                    System.out.println("Resident just left the block: " + resident);
 
-                    System.out.println("Task for category " + apartmentBlock.getBlockName() + " completed.");
-                }));
-
-        // Close the custom thread pool
-        customThreadPool.shutdown();
+                                }
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
+                        });
+                    });
+        } catch (Exception err) {
+            err.printStackTrace();
+        } finally {
+            threadCustom.shutdown();
+        }*/
     }
-
 }
